@@ -50,10 +50,10 @@ export default function Home() {
 
   const start = () => {
     if (results.length >= questions.length) { setScreen("results"); return; }
-    setIndex(results.length);
-    const q = questions[results.length];
-    setGuess(q.type === "year" ? Math.round((q.min + q.max) / 2) : Math.sqrt(q.min * q.max));
-    setSeconds(QUESTION_SECONDS);
+    const nextIndex = results.length;
+    setIndex(nextIndex);
+    setGuess(defaultGuess(questions[nextIndex]));
+    startTimer(nextIndex, results);
     setScreen("question");
   };
 
@@ -66,12 +66,24 @@ export default function Home() {
     setScreen("reveal");
   }, [screen, currentQuestion, guess, results, index, persist]);
 
+  const lockAnswerRef = useRef(lockAnswer);
+  useEffect(() => { lockAnswerRef.current = lockAnswer; }, [lockAnswer]);
+
   useEffect(() => {
     if (screen !== "question") return;
-    if (seconds <= 0) { lockAnswer(); return; }
-    const timer = window.setTimeout(() => setSeconds((s) => s - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [screen, seconds, lockAnswer]);
+    let fired = false;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000));
+      setSeconds(remaining);
+      if (remaining <= 0 && !fired) {
+        fired = true;
+        lockAnswerRef.current();
+      }
+    };
+    tick();
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [screen, index]);
 
   const nextQuestion = () => {
     if (index === questions.length - 1) {
@@ -87,10 +99,9 @@ export default function Home() {
       setScreen("results");
     } else {
       const nextIndex = index + 1;
-      const q = questions[nextIndex];
       setIndex(nextIndex);
-      setGuess(q.type === "year" ? Math.round((q.min + q.max) / 2) : Math.sqrt(q.min * q.max));
-      setSeconds(QUESTION_SECONDS);
+      setGuess(defaultGuess(questions[nextIndex]));
+      startTimer(nextIndex, results);
       setScreen("question");
     }
   };

@@ -35,6 +35,16 @@ The project uses Next.js static export (`out/`). Deploy that directory to any st
 
 Progress, results and streaks live in localStorage on the current browser/device. Clearing browser data or switching devices loses that data. There are no accounts, server-side scores, global percentile or anti-cheat guarantees.
 
+## Debugging
+
+A debug panel appears automatically in development. In a production build, add `?debug=1` to the URL to show it. The panel can:
+
+- reset the game while keeping your streak
+- reset the streak or all local data
+- skip the current question or finish the whole game
+- force the timer to 10, 5 or 2 seconds remaining (useful for testing reload/resume)
+- copy the current localStorage state
+
 ## Scoring
 
 Quantity questions use absolute base-10 log ratio error. Year questions use the PRD's scaled absolute-year error. Each question scores from 100 down to zero over an error range of 1.5. Daily score is out of 500. Average fold-error is the geometric mean of each question's fold-error.

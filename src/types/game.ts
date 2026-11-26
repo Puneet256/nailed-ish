@@ -31,6 +31,10 @@ export interface SavedGame {
   date: string;
   guesses: GuessResult[];
   completed: boolean;
+  /** Index of the question currently being played, if any. */
+  activeIndex?: number;
+  /** Absolute timestamp (ms) when the active question's timer expires. */
+  deadline?: number;
 }
 
 export interface StreakData {
