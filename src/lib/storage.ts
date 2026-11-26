@@ -14,6 +14,19 @@ export function writeGame(game: SavedGame): void {
   try { localStorage.setItem(GAME_KEY, JSON.stringify(game)); } catch { /* storage may be unavailable */ }
 }
 
+export function clearGame(): void {
+  try { localStorage.removeItem(GAME_KEY); } catch { /* storage may be unavailable */ }
+}
+
+export function clearStreak(): void {
+  try { localStorage.removeItem(STREAK_KEY); } catch { /* storage may be unavailable */ }
+}
+
+export function clearAll(): void {
+  clearGame();
+  clearStreak();
+}
+
 export function readStreak(): StreakData {
   try {
     const raw = localStorage.getItem(STREAK_KEY);

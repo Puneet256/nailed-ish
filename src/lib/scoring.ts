@@ -8,6 +8,12 @@ export function getError(question: Question, guess: number): number {
   return Math.log10(1 + Math.abs(guess - question.answer) / scale);
 }
 
+export function defaultGuess(question: Question): number {
+  return question.type === "year"
+    ? Math.round((question.min + question.max) / 2)
+    : Math.sqrt(question.min * question.max);
+}
+
 export function getTier(foldError: number): AccuracyTier {
   if (foldError <= 1.05) return "🎯";
   if (foldError <= 1.25) return "🟢";
