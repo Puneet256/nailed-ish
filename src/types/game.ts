@@ -35,6 +35,9 @@ export interface SavedGame {
   activeIndex?: number;
   /** Absolute timestamp (ms) when the active question's timer expires. */
   deadline?: number;
+  /** Debug: the timer is paused and holds `remaining` seconds. */
+  paused?: boolean;
+  remaining?: number;
 }
 
 export interface StreakData {

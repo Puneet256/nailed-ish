@@ -122,3 +122,4 @@ button { cursor: pointer; }
 .debug-actions button { padding: 6px 5px; border: 1px solid #dfe5da; border-radius: 6px; background: #fff; color: var(--green); font-family: "DM Mono", monospace; font-size: 9px; }
 .debug-actions button:hover:not(:disabled) { background: #eef3e9; border-color: #cfd9c8; }
 .debug-actions button:disabled { opacity: .4; cursor: not-allowed; }
+.debug-wide { grid-column: 1 / -1; font-weight: 500; }

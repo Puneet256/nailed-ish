@@ -23,6 +23,7 @@ export default function Home() {
   const [index, setIndex] = useState(0);
   const [guess, setGuess] = useState(questions[0]?.type === "year" ? 2000 : Math.sqrt((questions[0]?.min ?? 1) * (questions[0]?.max ?? 100)));
   const [seconds, setSeconds] = useState(QUESTION_SECONDS);
+  const [paused, setPaused] = useState(false);
   const [results, setResults] = useState<GuessResult[]>([]);
   const [streak, setStreak] = useState(0);
   const [hydrated, setHydrated] = useState(false);
@@ -30,13 +31,17 @@ export default function Home() {
   const currentQuestion = questions[index];
   const deadlineRef = useRef(0);
 
-  const persist = useCallback((nextResults: GuessResult[], completed = false, active?: { index: number; deadline: number } | null) => {
+  const persist = useCallback((nextResults: GuessResult[], completed = false, active?: { index: number; deadline?: number; paused?: boolean; remaining?: number } | null) => {
     const game: SavedGame = {
       dayNumber,
       date: today,
       guesses: nextResults,
       completed,
-      ...(active ? { activeIndex: active.index, deadline: active.deadline } : {}),
+      ...(active ? {
+        activeIndex: active.index,
+        ...(active.deadline !== undefined ? { deadline: active.deadline } : {}),
+        ...(active.paused ? { paused: true, remaining: active.remaining } : {}),
+      } : {}),
     };
     writeGame(game);
   }, [dayNumber, today]);
@@ -45,6 +50,7 @@ export default function Home() {
     const deadline = Date.now() + QUESTION_SECONDS * 1000;
     deadlineRef.current = deadline;
     setSeconds(QUESTION_SECONDS);
+    setPaused(false);
     persist(nextResults, false, { index: questionIndex, deadline });
   }, [persist]);
 
@@ -59,6 +65,18 @@ export default function Home() {
     setResults(saved.guesses);
     if (saved.completed) {
       setScreen("results");
+    } else if (
+      saved.paused &&
+      saved.activeIndex === saved.guesses.length &&
+      questions[saved.activeIndex]
+    ) {
+      // Resume a paused question with its frozen remaining time.
+      const questionIndex = saved.activeIndex;
+      setIndex(questionIndex);
+      setGuess(defaultGuess(questions[questionIndex]));
+      setPaused(true);
+      setSeconds(saved.remaining ?? QUESTION_SECONDS);
+      setScreen("question");
     } else if (
       typeof saved.deadline === "number" &&
       saved.activeIndex === saved.guesses.length &&
@@ -107,15 +125,31 @@ export default function Home() {
     const result = scoreGuess(currentQuestion, guess);
     const next = [...results.slice(0, index), result];
     setResults(next);
+    setPaused(false);
     persist(next);
     setScreen("reveal");
   }, [screen, currentQuestion, guess, results, index, persist]);
+
+  const togglePause = useCallback(() => {
+    if (screen !== "question") return;
+    if (paused) {
+      const deadline = Date.now() + seconds * 1000;
+      deadlineRef.current = deadline;
+      setPaused(false);
+      persist(results, false, { index, deadline });
+    } else {
+      const remaining = Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000));
+      setSeconds(remaining);
+      setPaused(true);
+      persist(results, false, { index, paused: true, remaining });
+    }
+  }, [screen, paused, seconds, results, index, persist]);
 
   const lockAnswerRef = useRef(lockAnswer);
   useEffect(() => { lockAnswerRef.current = lockAnswer; }, [lockAnswer]);
 
   useEffect(() => {
-    if (screen !== "question") return;
+    if (screen !== "question" || paused) return;
     let fired = false;
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000));
@@ -128,7 +162,7 @@ export default function Home() {
     tick();
     const timer = window.setInterval(tick, 250);
     return () => window.clearInterval(timer);
-  }, [screen, index]);
+  }, [screen, index, paused]);
 
   const nextQuestion = () => {
     if (index === questions.length - 1) {
@@ -179,7 +213,7 @@ export default function Home() {
         {screen === "results" && <ResultsScreen dayNumber={dayNumber} questions={questions} results={results} streak={streak} />}
       </div>
       <footer className="site-footer"><span>nailed...ish</span><span>Five questions. Daily. How close can you get?</span></footer>
-      <DebugPanel />
+      <DebugPanel paused={paused} canPause={screen === "question"} onTogglePause={togglePause} />
     </main>
   );
 }

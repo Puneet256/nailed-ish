@@ -18,7 +18,9 @@ function currentGame(): SavedGame | null {
   return game && game.date === localDateKey() && game.dayNumber === dayNumber ? game : null;
 }
 
-export function DebugPanel() {
+export function DebugPanel({ paused, canPause, onTogglePause }: {
+  paused: boolean; canPause: boolean; onTogglePause: () => void;
+}) {
   const [enabled, setEnabled] = useState(false);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -48,7 +50,11 @@ export function DebugPanel() {
   const reload = () => window.location.reload();
   const game = snapshot.game;
   const canSetTimer = !!game && !game.completed;
-  const remaining = game?.deadline ? Math.max(0, Math.ceil((game.deadline - Date.now()) / 1000)) : null;
+  const remaining = game?.paused
+    ? game.remaining ?? 0
+    : game?.deadline
+      ? Math.max(0, Math.ceil((game.deadline - Date.now()) / 1000))
+      : null;
 
   const resetGame = () => { clearGame(); reload(); };
   const resetStreak = () => { clearStreak(); reload(); };
@@ -58,7 +64,7 @@ export function DebugPanel() {
     const active = currentGame();
     if (!active || active.completed) return;
     const activeIndex = active.activeIndex ?? active.guesses.length;
-    writeGame({ ...active, activeIndex, deadline: Date.now() + seconds * 1000 });
+    writeGame({ ...active, activeIndex, deadline: Date.now() + seconds * 1000, paused: false, remaining: undefined });
     reload();
   };
 
@@ -125,9 +131,12 @@ export function DebugPanel() {
         <span>active <b>{game?.activeIndex ?? "—"}</b></span>
         <span>left <b>{remaining ?? "—"}</b></span>
         <span>streak <b>{snapshot.streak}</b></span>
-        <span>status <b>{game?.completed ? "done" : game ? "playing" : "new"}</b></span>
+        <span>status <b>{game?.completed ? "done" : game ? game.paused ? "paused" : "playing" : "new"}</b></span>
       </div>
       <div className="debug-actions">
+        <button className="debug-wide" onClick={onTogglePause} disabled={!canPause}>
+          {paused ? "▶ Resume timer" : "❚❚ Pause timer"}
+        </button>
         <button onClick={resetGame}>Reset game</button>
         <button onClick={resetStreak}>Reset streak</button>
         <button onClick={resetAll}>Reset all</button>

@@ -41,6 +41,7 @@ A debug panel appears automatically in development. In a production build, add `
 
 - reset the game while keeping your streak
 - reset the streak or all local data
+- pause and resume the question timer (the frozen time survives reloads)
 - skip the current question or finish the whole game
 - force the timer to 10, 5 or 2 seconds remaining (useful for testing reload/resume)
 - copy the current localStorage state
