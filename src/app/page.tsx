@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GameHeader } from "@/components/GameHeader";
 import { QuestionCard } from "@/components/QuestionCard";
 import { AnswerReveal } from "@/components/AnswerReveal";
+import { DebugPanel } from "@/components/DebugPanel";
 import { ResultsScreen } from "@/components/ResultsScreen";
 import { questionSets } from "@/data/questions";
 import { getDailySet, getDayNumber, localDateKey } from "@/lib/dates";
 import { QUESTION_SECONDS } from "@/lib/config";
-import { scoreGuess } from "@/lib/scoring";
+import { defaultGuess, scoreGuess } from "@/lib/scoring";
 import { readGame, readStreak, writeGame, writeStreak } from "@/lib/storage";
 import type { GuessResult, SavedGame } from "@/types/game";
 
@@ -27,26 +28,70 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
 
   const currentQuestion = questions[index];
+  const deadlineRef = useRef(0);
+
+  const persist = useCallback((nextResults: GuessResult[], completed = false, active?: { index: number; deadline: number } | null) => {
+    const game: SavedGame = {
+      dayNumber,
+      date: today,
+      guesses: nextResults,
+      completed,
+      ...(active ? { activeIndex: active.index, deadline: active.deadline } : {}),
+    };
+    writeGame(game);
+  }, [dayNumber, today]);
+
+  const startTimer = useCallback((questionIndex: number, nextResults: GuessResult[]) => {
+    const deadline = Date.now() + QUESTION_SECONDS * 1000;
+    deadlineRef.current = deadline;
+    setSeconds(QUESTION_SECONDS);
+    persist(nextResults, false, { index: questionIndex, deadline });
+  }, [persist]);
 
   useEffect(() => {
     const saved = readGame();
     const savedStreak = readStreak();
     setStreak(savedStreak.current);
-    if (saved?.date === today && saved.dayNumber === dayNumber) {
-      setResults(saved.guesses);
-      if (saved.completed) setScreen("results");
-      else if (saved.guesses.length > 0) {
-        setIndex(saved.guesses.length);
+    if (saved?.date !== today || saved.dayNumber !== dayNumber) {
+      setHydrated(true);
+      return;
+    }
+    setResults(saved.guesses);
+    if (saved.completed) {
+      setScreen("results");
+    } else if (
+      typeof saved.deadline === "number" &&
+      saved.activeIndex === saved.guesses.length &&
+      questions[saved.activeIndex]
+    ) {
+      // Resume the question that was in progress, keeping the elapsed time.
+      const questionIndex = saved.activeIndex;
+      setIndex(questionIndex);
+      setGuess(defaultGuess(questions[questionIndex]));
+      const remaining = Math.ceil((saved.deadline - Date.now()) / 1000);
+      if (remaining > 0) {
+        deadlineRef.current = saved.deadline;
+        setSeconds(remaining);
         setScreen("question");
+      } else {
+        // Time ran out while away; start fresh instead of auto-locking a
+        // guess the player never actually set.
+        startTimer(questionIndex, saved.guesses);
+        setScreen("question");
+      }
+    } else if (saved.guesses.length > 0) {
+      const questionIndex = saved.guesses.length;
+      if (questions[questionIndex]) {
+        setIndex(questionIndex);
+        setGuess(defaultGuess(questions[questionIndex]));
+        startTimer(questionIndex, saved.guesses);
+        setScreen("question");
+      } else {
+        setScreen("results");
       }
     }
     setHydrated(true);
-  }, [today, dayNumber]);
-
-  const persist = useCallback((nextResults: GuessResult[], completed = false) => {
-    const game: SavedGame = { dayNumber, date: today, guesses: nextResults, completed };
-    writeGame(game);
-  }, [dayNumber, today]);
+  }, [today, dayNumber, questions, startTimer]);
 
   const start = () => {
     if (results.length >= questions.length) { setScreen("results"); return; }
@@ -117,10 +162,10 @@ export default function Home() {
         {screen === "intro" && (
           <section className="game-panel intro-panel">
             <span className="eyebrow">THE DAILY ESTIMATION GAME</span>
-            <div className="intro-mark">≈</div>
+            <div className="intro-mark"><span className="intro-mark-symbol">≈</span></div>
             <h1>nailed<span>...</span>ish</h1>
             <p className="tagline">How close can you get?</p>
-            <div className="intro-details"><span>5 QUESTIONS</span><i>·</i><span>DAILY</span><i>·</i><span>25 SECONDS EACH</span></div>
+            <div className="intro-details"><span>5 QUESTIONS</span><i>·</i><span>DAILY</span><i>·</i><span>20 SECONDS EACH</span></div>
             <button className="primary-button" onClick={start}>Play today's game <span>→</span></button>
             <p className="intro-footnote">No sign-up. No pressure. Just a good guess.</p>
           </section>
@@ -134,6 +179,7 @@ export default function Home() {
         {screen === "results" && <ResultsScreen dayNumber={dayNumber} questions={questions} results={results} streak={streak} />}
       </div>
       <footer className="site-footer"><span>nailed...ish</span><span>Five questions. Daily. How close can you get?</span></footer>
+      <DebugPanel />
     </main>
   );
 }
