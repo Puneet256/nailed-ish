@@ -34,8 +34,7 @@ export function DebugPanel({ paused, canPause, onTogglePause }: {
   }, []);
 
   useEffect(() => {
-    const forced = new URLSearchParams(window.location.search).get("debug") === "1";
-    setEnabled(process.env.NODE_ENV === "development" || forced);
+    setEnabled(process.env.NODE_ENV === "development");
   }, []);
 
   useEffect(() => {

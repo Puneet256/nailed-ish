@@ -37,7 +37,7 @@ Progress, results and streaks live in localStorage on the current browser/device
 
 ## Debugging
 
-A debug panel appears automatically in development. In a production build, add `?debug=1` to the URL to show it. The panel can:
+A debug panel appears automatically in development. The panel can:
 
 - reset the game while keeping your streak
 - reset the streak or all local data
